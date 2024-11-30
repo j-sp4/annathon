@@ -1,8 +1,4 @@
-FROM --platform=linux/amd64 python:3.9
-
-
-RUN apt-get update
-RUN apt-get install pandoc texlive-xetex poppler-utils -y && apt-get clean && rm -rf /var/lib/apt/lists/*
+FROM --platform=linux/amd64 python:3.11
 
 WORKDIR /code
 COPY ./requirements.txt /code/requirements.txt
