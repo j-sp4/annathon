@@ -9,6 +9,6 @@ class UploadFiles(BaseModel):
 
 class Search(BaseModel):
     text: str
-    method: Optional[str] = "global"  # Can be "global" or "local"
-    community_level: Optional[int] = 2
-    response_type: Optional[str] = "Multiple Paragraphs"
+    method: Optional[str] = "hybrid"  # Can be "hybrid", "global", "local", or "naive"
+    community_level: Optional[int] = 2  # Kept for backward compatibility
+    response_type: Optional[str] = "Multiple Paragraphs"  # Kept for backward compatibility

@@ -1,80 +1,78 @@
 import os
 import shutil
-import asyncio
 from pathlib import Path
 from fastapi import HTTPException
-from loguru import logger
+from lightrag_hku import LightRAG, QueryParam, EmbeddingFunc
+from lightrag_hku.llm import gpt_4o_mini_complete
+from ..utils import logger
 
 class GraphRAGService:
     def __init__(self, base_path: str = "./data"):
         self.base_path = base_path
         self.input_path = f"{base_path}/input"
         self.output_path = f"{base_path}/output"
+        self.rag = None
 
     async def setup_directories(self):
-        """Ensure required directories exist"""
+        """Ensure required directories exist and initialize LightRAG"""
         os.makedirs(self.input_path, exist_ok=True)
         os.makedirs(self.output_path, exist_ok=True)
+        
+        # Initialize LightRAG
+        self.rag = LightRAG(
+            working_dir=self.output_path,
+            llm_model_func=gpt_4o_mini_complete  # You can change this to other models
+        )
 
-    async def run_indexing_pipeline(self):
-        """Run the GraphRAG indexing pipeline"""
+    async def run_query(self, query: str, method: str = "hybrid", community_level: int = 2, response_type: str = "Multiple Paragraphs"):
+        """Run a LightRAG query"""
         try:
-            process = await asyncio.create_subprocess_exec(
-                "python", "-m", "graphrag.index",
-                "--root", self.base_path,
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE
-            )
-            stdout, stderr = await process.communicate()
-            
-            if process.returncode != 0:
-                logger.error(f"Indexing pipeline failed: {stderr.decode()}")
-                raise HTTPException(status_code=500, detail="Indexing pipeline failed")
+            if not self.rag:
+                raise HTTPException(status_code=500, detail="LightRAG not initialized")
                 
-            return True
-        except Exception as e:
-            logger.error(f"Error running indexing pipeline: {str(e)}")
-            raise HTTPException(status_code=500, detail="Failed to run indexing pipeline")
-
-    async def run_query(self, query: str, method: str, community_level: int, response_type: str):
-        """Run a GraphRAG query"""
-        try:
-            process = await asyncio.create_subprocess_exec(
-                "python", "-m", "graphrag.query",
-                "--root", self.base_path,
-                "--method", method,
-                "--community_level", str(community_level),
-                "--response_type", response_type,
+            # Convert method parameter to LightRAG query mode
+            mode = {
+                "global": "global",
+                "local": "local",
+                "hybrid": "hybrid",
+                "naive": "naive"
+            }.get(method, "hybrid")
+            
+            # Execute query
+            result = self.rag.query(
                 query,
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE
+                param=QueryParam(
+                    mode=mode,
+                    # Add any other relevant parameters here
+                )
             )
-            stdout, stderr = await process.communicate()
-            
-            if process.returncode != 0:
-                logger.error(f"Query failed: {stderr.decode()}")
-                raise HTTPException(status_code=500, detail="Query execution failed")
                 
-            return stdout.decode().strip()
+            return result
+            
         except Exception as e:
             logger.error(f"Error running query: {str(e)}")
-            raise HTTPException(status_code=500, detail="Failed to execute query")
+            raise HTTPException(status_code=500, detail=f"Failed to execute query: {str(e)}")
 
     async def process_files(self, files):
-        """Process uploaded files"""
+        """Process uploaded files with LightRAG"""
         try:
+            if not self.rag:
+                raise HTTPException(status_code=500, detail="LightRAG not initialized")
+
             # Clear input directory
             shutil.rmtree(self.input_path, ignore_errors=True)
             os.makedirs(self.input_path)
             
-            # Save uploaded files
+            # Process each file
             for file in files:
                 file_path = Path(self.input_path) / file.filename
                 with open(file_path, "wb") as f:
                     shutil.copyfileobj(file.file, f)
-            
-            # Run indexing pipeline
-            await self.run_indexing_pipeline()
+                
+                # Read and insert content into LightRAG
+                with open(file_path, "r", encoding="utf-8") as f:
+                    content = f.read()
+                    self.rag.insert(content)
             
             return {"message": "Files processed successfully"}
             
