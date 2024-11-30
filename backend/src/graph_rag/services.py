@@ -22,8 +22,9 @@ class GraphRAGService:
         # Initialize LightRAG
         self.rag = LightRAG(
             working_dir=WORKING_DIR,
-            llm_model_func=gpt_4o_mini_complete,  # You can change this to other models
-            kg="Neo4JStorage"
+            llm_model_func=gpt_4o_mini_complete,  # Use gpt_4o_mini_complete LLM model
+            graph_storage="Neo4JStorage", #<-----------override KG default
+            log_level="DEBUG"  #<-----------override log_level default
         )
 
     async def run_query(self, query: str, method: str = "hybrid", community_level: int = 2, response_type: str = "Multiple Paragraphs"):
