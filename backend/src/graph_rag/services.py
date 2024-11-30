@@ -2,8 +2,8 @@ import os
 import shutil
 from pathlib import Path
 from fastapi import HTTPException
-from lightrag_hku import LightRAG, QueryParam, EmbeddingFunc
-from lightrag_hku.llm import gpt_4o_mini_complete
+from lightrag import LightRAG, QueryParam, EmbeddingFunc
+from lightrag.llm import gpt_4o_mini_complete
 from ..utils import logger
 
 class GraphRAGService:
@@ -17,11 +17,13 @@ class GraphRAGService:
         """Ensure required directories exist and initialize LightRAG"""
         os.makedirs(self.input_path, exist_ok=True)
         os.makedirs(self.output_path, exist_ok=True)
+        WORKING_DIR = "./local_neo4jWorkDir"
         
         # Initialize LightRAG
         self.rag = LightRAG(
-            working_dir=self.output_path,
-            llm_model_func=gpt_4o_mini_complete  # You can change this to other models
+            working_dir=WORKING_DIR,
+            llm_model_func=gpt_4o_mini_complete,  # You can change this to other models
+            kg="Neo4JStorage"
         )
 
     async def run_query(self, query: str, method: str = "hybrid", community_level: int = 2, response_type: str = "Multiple Paragraphs"):
