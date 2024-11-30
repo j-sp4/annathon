@@ -2,9 +2,12 @@ FROM node:20-alpine
 
 WORKDIR /app
 
+# Install Python and other necessary build tools
+RUN apk add --no-cache python3 make g++ 
+
 # Copy package files and install dependencies
-COPY package.json package-lock.json* ./
-RUN npm ci
+COPY package.json pnpm-lock.yaml* ./
+RUN npm install -g pnpm && pnpm install
 
 # Copy the source code and configuration files
 COPY . .
@@ -15,7 +18,6 @@ COPY . .
 #
 # RUN apk add --no-cache nginx
 # COPY nginx.conf /etc/nginx/conf.d/default.conf
-
 
 # Note: Don't expose ports here, Compose will handle that for us
 # EXPOSE 3000
