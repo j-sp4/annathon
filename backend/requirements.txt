@@ -58,3 +58,4 @@ beautifulsoup4
 lxml>=5.2.0
 lightrag-hku==1.0.1
 aioboto3==13.2.0
+ollama==0.1.17
