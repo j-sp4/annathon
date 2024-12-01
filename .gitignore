@@ -35,5 +35,6 @@ dist/
 *.swp
 *.swo
 
-
+settings.json
 *.postgres
+backend/pytest.ini
