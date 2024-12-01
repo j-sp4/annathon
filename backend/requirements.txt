@@ -59,3 +59,7 @@ beautifulsoup4
 lxml>=5.2.0
 lightrag-hku==1.0.1
 aioboto3==13.2.0
+tiktoken==0.8.0 
+nano-vectordb==0.0.4.3
+neo4j==5.27.0
+oracledb==2.5.0  
