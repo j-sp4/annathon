@@ -21,7 +21,7 @@ services:
     env_file:
       - .env
     volumes:
-      - ./frontend/src:/app/src
+      - ./frontend:/app/
       - ./frontend/public:/app/public
     restart: always
     ports:

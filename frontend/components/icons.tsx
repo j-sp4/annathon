@@ -855,3 +855,9 @@ export const CheckCirclFillIcon = ({ size = 16 }: { size?: number }) => {
     </svg>
   );
 };
+
+export const KnowledgeGraphIcon = ({ size = 16 }: { size?: number }) => (
+  <svg height={size} viewBox="0 0 16 16" width={size} style={{ color: 'currentcolor' }}>
+    <path d="M12.5 1.5H3.5C2.67157 1.5 2 2.17157 2 3V13C2 13.8284 2.67157 14.5 3.5 14.5H12.5C13.3284 14.5 14 13.8284 14 13V3C14 2.17157 13.3284 1.5 12.5 1.5ZM3.5 0.5H12.5C13.8807 0.5 15 1.61929 15 3V13C15 14.3807 13.8807 15.5 12.5 15.5H3.5C2.11929 15.5 1 14.3807 1 13V3C1 1.61929 2.11929 0.5 3.5 0.5Z" fill="currentColor"/>
+  </svg>
+);
