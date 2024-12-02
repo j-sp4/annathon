@@ -2,9 +2,10 @@ import os
 import shutil
 from pathlib import Path
 from fastapi import HTTPException
-from lightrag import LightRAG, QueryParam, EmbeddingFunc
+from lightrag import LightRAG, QueryParam
 from lightrag.llm import gpt_4o_mini_complete
-from ..utils import logger
+from ..utils.logger import logger
+
 
 class GraphRAGService:
     def __init__(self, base_path: str = "./data"):
@@ -12,19 +13,20 @@ class GraphRAGService:
         self.input_path = f"{base_path}/input"
         self.output_path = f"{base_path}/output"
         self.rag = None
+        self.working_dir = "./local_neo4jWorkDir"
 
     async def setup_directories(self):
         """Ensure required directories exist and initialize LightRAG"""
         os.makedirs(self.input_path, exist_ok=True)
         os.makedirs(self.output_path, exist_ok=True)
-        WORKING_DIR = "./local_neo4jWorkDir"
+        os.makedirs(self.working_dir, exist_ok=True)
         
         # Initialize LightRAG
         self.rag = LightRAG(
-            working_dir=WORKING_DIR,
-            llm_model_func=gpt_4o_mini_complete,  # Use gpt_4o_mini_complete LLM model
-            graph_storage="Neo4JStorage", #<-----------override KG default
-            log_level="DEBUG"  #<-----------override log_level default
+            working_dir=self.working_dir,
+            llm_model_func=gpt_4o_mini_complete,
+            graph_storage="Neo4JStorage",
+            log_level="DEBUG"
         )
 
     async def run_query(self, query: str, method: str = "hybrid", community_level: int = 2, response_type: str = "Multiple Paragraphs"):
@@ -33,7 +35,6 @@ class GraphRAGService:
             if not self.rag:
                 raise HTTPException(status_code=500, detail="LightRAG not initialized")
                 
-            # Convert method parameter to LightRAG query mode
             mode = {
                 "global": "global",
                 "local": "local",
@@ -41,12 +42,10 @@ class GraphRAGService:
                 "naive": "naive"
             }.get(method, "hybrid")
             
-            # Execute query
-            result = self.rag.query(
+            result = await self.rag.aquery(
                 query,
                 param=QueryParam(
                     mode=mode,
-                    # Add any other relevant parameters here
                 )
             )
                 
@@ -75,7 +74,7 @@ class GraphRAGService:
                 # Read and insert content into LightRAG
                 with open(file_path, "r", encoding="utf-8") as f:
                     content = f.read()
-                    self.rag.insert(content)
+                    await self.rag.ainsert(content)
             
             return {"message": "Files processed successfully"}
             

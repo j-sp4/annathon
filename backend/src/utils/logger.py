@@ -65,6 +65,8 @@ class ErrorLogger:
 
 logger.add(ErrorLogger(notify=str(os.getenv("SLACK_FAIL_BOT_NOTIFY"))), serialize=True)
 
+__all__ = ['logger']
+
 # example usage
 # logger.trace("Executing program")
 # logger.debug("Processing data...")
