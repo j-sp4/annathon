@@ -15,10 +15,14 @@ app.add_middleware(
 )
 
 # Initialize GraphRAG service
-graph_rag_service = GraphRAGService()
+
 
 @app.on_event("startup")
 async def startup_event():
+    print("Starting up...")
+    graph_rag_service = GraphRAGService()
+
+
     await graph_rag_service.setup_directories()
 
 # Include GraphRAG routes

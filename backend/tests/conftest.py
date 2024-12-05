@@ -20,6 +20,8 @@ def setup_test_env():
 
     # Set test-specific env vars
     NEO4J_USERNAME, NEO4J_PASSWORD = NEO4J_AUTH.split('/')
+    NEO4J_URI="neo4j://localhost:7687"
+    os.environ['NEO4J_URI'] = NEO4J_URI
     os.environ['NEO4J_USERNAME'] = NEO4J_USERNAME
     os.environ['NEO4J_PASSWORD'] = NEO4J_PASSWORD
       # Run the test

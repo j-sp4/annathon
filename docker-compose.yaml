@@ -40,6 +40,18 @@ services:
     env_file:
       - .env
 
+  neo4j:
+    image: neo4j:latest
+    container_name: neo4j
+    ports:
+      - 7474:7474  # HTTP port
+      - 7687:7687  # Bolt port
+    env_file:
+      - .env
+    volumes:
+      - neo4j_data:/data
+
+
   backend:
     container_name: backend
     build:
@@ -52,17 +64,11 @@ services:
     restart: always
     ports:
       - 3001:3001
+      - 5678:5678
+    stdin_open: true
+    tty: true
 
-  neo4j:
-    image: neo4j:latest
-    container_name: neo4j
-    ports:
-      - 7474:7474  # HTTP port
-      - 7687:7687  # Bolt port
-    env_file:
-      - .env
-    volumes:
-      - neo4j_data:/data
+
 
 volumes:
   postgresql_data:

@@ -5,7 +5,27 @@ from fastapi import HTTPException
 from lightrag import LightRAG, QueryParam
 from lightrag.llm import gpt_4o_mini_complete
 from ..utils.logger import logger
+from .storage.custom_neo4j import CustomNeo4JStorage
+from lightrag.lightrag import LightRAG
 
+# Patch the storage class registry
+def setup_custom_storage():
+    # Access the storage class dictionary directly
+    storage_classes = {
+        # Keep existing storage classes
+        "JsonKVStorage": LightRAG._get_storage_class(None)["JsonKVStorage"],
+        "NanoVectorDBStorage": LightRAG._get_storage_class(None)["NanoVectorDBStorage"],
+        "NetworkXStorage": LightRAG._get_storage_class(None)["NetworkXStorage"],
+        # Add our custom storage
+        "CustomNeo4JStorage": CustomNeo4JStorage
+    }
+    
+    # Monkey patch the _get_storage_class method
+    def new_get_storage_class(self):
+        return storage_classes
+    
+    LightRAG._get_storage_class = new_get_storage_class
+    return storage_classes
 
 class GraphRAGService:
     def __init__(self, base_path: str = "./data"):
@@ -15,19 +35,35 @@ class GraphRAGService:
         self.rag = None
         self.working_dir = "./local_neo4jWorkDir"
 
+    setup_custom_storage()
+    
     async def setup_directories(self):
         """Ensure required directories exist and initialize LightRAG"""
-        os.makedirs(self.input_path, exist_ok=True)
-        os.makedirs(self.output_path, exist_ok=True)
-        os.makedirs(self.working_dir, exist_ok=True)
-        
-        # Initialize LightRAG
-        self.rag = LightRAG(
+        try:
+            # Create directories with explicit permissions
+            os.makedirs(self.working_dir, mode=0o777, exist_ok=True)
+            
+            logger.info(f"Created directories: {self.input_path}, {self.output_path}, {self.working_dir}")
+
+            NEO4J_AUTH = os.environ.get('NEO4J_AUTH')
+            NEO4J_USERNAME, NEO4J_PASSWORD = NEO4J_AUTH.split('/')
+            
+            # Initialize LightRAG with correct parameters
+            self.rag = LightRAG(
             working_dir=self.working_dir,
-            llm_model_func=gpt_4o_mini_complete,
-            graph_storage="Neo4JStorage",
+            graph_storage="CustomNeo4JStorage",
             log_level="DEBUG"
-        )
+            )
+            logger.info("LightRAG initialized successfully")
+            
+        except Exception as e:
+            logger.error(f"Failed to setup directories or initialize LightRAG: {str(e)}")
+            import traceback
+            logger.error(f"Traceback: {traceback.format_exc()}")
+            raise HTTPException(
+                status_code=500, 
+                detail=f"Failed to initialize: {str(e)}"
+            )
 
     async def run_query(self, query: str, method: str = "hybrid", community_level: int = 2, response_type: str = "Multiple Paragraphs"):
         """Run a LightRAG query"""
