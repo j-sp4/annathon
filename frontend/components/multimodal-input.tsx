@@ -23,7 +23,7 @@ import { useLocalStorage, useWindowSize } from 'usehooks-ts';
 
 import { sanitizeUIMessages } from '@/lib/utils';
 
-import { ArrowUpIcon, PaperclipIcon, StopIcon } from './icons';
+import { ArrowUpIcon, KnowledgeGraphIcon, PaperclipIcon, StopIcon } from './icons';
 import { PreviewAttachment } from './preview-attachment';
 import { Button } from './ui/button';
 import { Textarea } from './ui/textarea';
@@ -49,6 +49,8 @@ export function MultimodalInput({
   stop,
   attachments,
   setAttachments,
+  graphAttachments,
+  setGraphAttachments,
   messages,
   setMessages,
   append,
@@ -62,6 +64,8 @@ export function MultimodalInput({
   stop: () => void;
   attachments: Array<Attachment>;
   setAttachments: Dispatch<SetStateAction<Array<Attachment>>>;
+  graphAttachments: Array<Attachment>;
+  setGraphAttachments: Dispatch<SetStateAction<Array<Attachment>>>;
   messages: Array<Message>;
   setMessages: Dispatch<SetStateAction<Array<Message>>>;
   append: (
@@ -119,6 +123,7 @@ export function MultimodalInput({
   };
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const graphFileInputRef = useRef<HTMLInputElement>(null);
   const [uploadQueue, setUploadQueue] = useState<Array<string>>([]);
 
   const submitForm = useCallback(() => {
@@ -126,9 +131,11 @@ export function MultimodalInput({
 
     handleSubmit(undefined, {
       experimental_attachments: attachments,
+      experimental_graph_attachments: graphAttachments,
     });
 
     setAttachments([]);
+    setGraphAttachments([]);
     setLocalStorageInput('');
 
     if (width && width > 768) {
@@ -136,8 +143,10 @@ export function MultimodalInput({
     }
   }, [
     attachments,
+    graphAttachments,
     handleSubmit,
     setAttachments,
+    setGraphAttachments,
     setLocalStorageInput,
     width,
     chatId,
@@ -149,6 +158,32 @@ export function MultimodalInput({
 
     try {
       const response = await fetch('/api/files/upload', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        const { url, pathname, contentType } = data;
+
+        return {
+          url,
+          name: pathname,
+          contentType: contentType,
+        };
+      }
+      const { error } = await response.json();
+      toast.error(error);
+    } catch (error) {
+      toast.error('Failed to upload file, please try again!');
+    }
+  };
+  const uploadGraphFile = async (file: File) => {
+    const formData = new FormData();
+    formData.append('file', file);
+
+    try {
+      const response = await fetch('/api/graph-files/upload', {
         method: 'POST',
         body: formData,
       });
@@ -195,6 +230,31 @@ export function MultimodalInput({
     },
     [setAttachments],
   );
+  const handleGraphFileChange = useCallback(
+    async (event: ChangeEvent<HTMLInputElement>) => {
+      const files = Array.from(event.target.files || []);
+
+      setUploadQueue(files.map((file) => file.name));
+
+      try {
+        const uploadPromises = files.map((file) => uploadGraphFile(file));
+        const uploadedAttachments = await Promise.all(uploadPromises);
+        const successfullyUploadedAttachments = uploadedAttachments.filter(
+          (graphAttachment) => graphAttachment !== undefined,
+        );
+
+        setGraphAttachments((currentGraphAttachments) => [
+          ...currentGraphAttachments,
+          ...successfullyUploadedAttachments,
+        ]);
+      } catch (error) {
+        console.error('Error uploading files!', error);
+      } finally {
+        setUploadQueue([]);
+      }
+    },
+    [setGraphAttachments],
+  );
 
   return (
     <div className="relative w-full flex flex-col gap-4">
@@ -239,6 +299,14 @@ export function MultimodalInput({
         ref={fileInputRef}
         multiple
         onChange={handleFileChange}
+        tabIndex={-1}
+      />
+      <input
+        type="file"
+        className="fixed -top-4 -left-4 size-0.5 opacity-0 pointer-events-none"
+        ref={graphFileInputRef}
+        multiple
+        onChange={handleGraphFileChange}
         tabIndex={-1}
       />
 
@@ -320,6 +388,17 @@ export function MultimodalInput({
         disabled={isLoading}
       >
         <PaperclipIcon size={14} />
+      </Button>
+      <Button
+        className="rounded-full p-1.5 h-fit absolute bottom-2 right-20 m-0.5 dark:border-zinc-700"
+        onClick={(event) => {
+          event.preventDefault();
+          graphFileInputRef.current?.click();
+        }}
+        variant="outline"
+        disabled={isLoading}
+      >
+        <KnowledgeGraphIcon size={14} />
       </Button>
     </div>
   );

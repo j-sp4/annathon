@@ -7,6 +7,8 @@ from lightrag.llm import gpt_4o_mini_complete
 from ..utils.logger import logger
 from .storage.custom_neo4j import CustomNeo4JStorage
 from lightrag.lightrag import LightRAG
+from .models import PutBlobResult
+import httpx
 
 # Patch the storage class registry
 def setup_custom_storage():
@@ -45,15 +47,15 @@ class GraphRAGService:
             
             logger.info(f"Created directories: {self.input_path}, {self.output_path}, {self.working_dir}")
 
-            NEO4J_AUTH = os.environ.get('NEO4J_AUTH')
-            NEO4J_USERNAME, NEO4J_PASSWORD = NEO4J_AUTH.split('/')
+            # NEO4J_AUTH = os.environ.get('NEO4J_AUTH')
+            # NEO4J_USERNAME, NEO4J_PASSWORD = NEO4J_AUTH.split('/')
             
             # Initialize LightRAG with correct parameters
             self.rag = LightRAG(
-            working_dir=self.working_dir,
-            graph_storage="CustomNeo4JStorage",
-            log_level="DEBUG"
-            )
+                working_dir=self.working_dir,
+                graph_storage="CustomNeo4JStorage",
+                log_level="DEBUG"
+            )   
             logger.info("LightRAG initialized successfully")
             
         except Exception as e:
@@ -91,28 +93,23 @@ class GraphRAGService:
             logger.error(f"Error running query: {str(e)}")
             raise HTTPException(status_code=500, detail=f"Failed to execute query: {str(e)}")
 
-    async def process_files(self, files):
+    async def create_graph(self, data: PutBlobResult):
         """Process uploaded files with LightRAG"""
         try:
             if not self.rag:
+                logger.error("LightRAG not initialized")
+                logger.error(self.rag)
                 raise HTTPException(status_code=500, detail="LightRAG not initialized")
-
-            # Clear input directory
-            shutil.rmtree(self.input_path, ignore_errors=True)
-            os.makedirs(self.input_path)
             
-            # Process each file
-            for file in files:
-                file_path = Path(self.input_path) / file.filename
-                with open(file_path, "wb") as f:
-                    shutil.copyfileobj(file.file, f)
+            async with httpx.AsyncClient() as client:
+                response = await client.get(data.url)
+                if response.status_code != 200:
+                    raise HTTPException(status_code=500, detail="Failed to download file from Blob storage")
                 
-                # Read and insert content into LightRAG
-                with open(file_path, "r", encoding="utf-8") as f:
-                    content = f.read()
-                    await self.rag.ainsert(content)
+                content = response.text
+                await self.rag.ainsert(content)
             
-            return {"message": "Files processed successfully"}
+            return {"message": "File processed successfully"}
             
         except Exception as e:
             logger.error(f"Error processing files: {str(e)}")

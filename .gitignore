@@ -38,3 +38,5 @@ dist/
 settings.json
 *.postgres
 backend/pytest.ini
+
+backend/local_neo4jWorkDir
