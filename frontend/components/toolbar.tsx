@@ -1,6 +1,6 @@
 'use client';
 
-import type { ChatRequestOptions, CreateMessage, Message } from 'ai';
+import type { ChatRequestOptions, CreateMessage, Message } from '@/types/message';
 import cx from 'classnames';
 import {
   AnimatePresence,

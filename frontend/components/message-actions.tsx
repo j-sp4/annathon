@@ -1,4 +1,4 @@
-import type { Message } from 'ai';
+import type { Message } from '@/types/message';
 import { toast } from 'sonner';
 import { useSWRConfig } from 'swr';
 import { useCopyToClipboard } from 'usehooks-ts';

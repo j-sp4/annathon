@@ -1,6 +1,6 @@
 'use client';
 
-import type { Message } from 'ai';
+import type { Message } from '@/types/message';
 import cx from 'classnames';
 import { motion } from 'framer-motion';
 import type { Dispatch, SetStateAction } from 'react';

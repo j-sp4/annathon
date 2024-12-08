@@ -1,7 +1,8 @@
 'use client';
 
-import type { Attachment, Message } from 'ai';
-import { useChat } from 'ai/react';
+import type { Attachment } from 'ai';
+import type { Message, ChatRequestOptions } from '@/types/message';
+import { useCustomChat } from '@/hooks/use-custom-chat';
 import { AnimatePresence } from 'framer-motion';
 import { useState } from 'react';
 import useSWR, { useSWRConfig } from 'swr';
@@ -39,13 +40,26 @@ export function Chat({
     isLoading,
     stop,
     data: streamingData,
-  } = useChat({
+  } = useCustomChat({
     body: { id, modelId: selectedModelId },
     initialMessages,
     onFinish: () => {
       mutate('/api/history');
     },
-  });
+  }) as {
+    messages: Message[];
+    setMessages: (messages: Message[]) => void;
+    handleSubmit: (
+      event?: { preventDefault?: () => void },
+      chatRequestOptions?: ChatRequestOptions
+    ) => void;
+    input: string;
+    setInput: (input: string) => void;
+    append: (message: Message, chatRequestOptions?: ChatRequestOptions) => Promise<string | null | undefined>;
+    isLoading: boolean;
+    stop: () => void;
+    data?: any;
+  };
 
   const { width: windowWidth = 1920, height: windowHeight = 1080 } =
     useWindowSize();
@@ -73,6 +87,7 @@ export function Chat({
     useScrollToBottom<HTMLDivElement>();
 
   const [attachments, setAttachments] = useState<Array<Attachment>>([]);
+  const [graphAttachments, setGraphAttachments] = useState<Array<Attachment>>([]);
 
   return (
     <>
@@ -121,6 +136,8 @@ export function Chat({
             stop={stop}
             attachments={attachments}
             setAttachments={setAttachments}
+            graphAttachments={graphAttachments}
+            setGraphAttachments={setGraphAttachments}
             messages={messages}
             setMessages={setMessages}
             append={append}

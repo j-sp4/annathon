@@ -1,11 +1,6 @@
 'use client';
-
-import type {
-  Attachment,
-  ChatRequestOptions,
-  CreateMessage,
-  Message,
-} from 'ai';
+import type { Attachment } from 'ai';
+import type { CreateMessage, Message, ChatRequestOptions } from '@/types/message';
 import cx from 'classnames';
 import { motion } from 'framer-motion';
 import type React from 'react';
@@ -67,11 +62,8 @@ export function MultimodalInput({
   graphAttachments: Array<Attachment>;
   setGraphAttachments: Dispatch<SetStateAction<Array<Attachment>>>;
   messages: Array<Message>;
-  setMessages: Dispatch<SetStateAction<Array<Message>>>;
-  append: (
-    message: Message | CreateMessage,
-    chatRequestOptions?: ChatRequestOptions,
-  ) => Promise<string | null | undefined>;
+  setMessages: any;
+  append: any;
   handleSubmit: (
     event?: {
       preventDefault?: () => void;
@@ -126,12 +118,41 @@ export function MultimodalInput({
   const graphFileInputRef = useRef<HTMLInputElement>(null);
   const [uploadQueue, setUploadQueue] = useState<Array<string>>([]);
 
+  const [toolOverride, setToolOverride] = useState<string>('');
+
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      console.log('Key pressed:', {
+        key: event.key,
+        metaKey: event.metaKey,
+        ctrlKey: event.ctrlKey,
+        altKey: event.altKey
+      });
+      
+      if ((event.metaKey || event.ctrlKey) && event.altKey && event.key.toLowerCase() === '©') {
+        event.preventDefault();
+        setToolOverride(current => {
+          const newValue = current === 'graphQuery' ? '' : 'graphQuery';
+          toast.success(newValue ? 'Graph Query mode enabled' : 'Graph Query mode disabled');
+          return newValue;
+        });
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
   const submitForm = useCallback(() => {
+    console.log('toolOverride', toolOverride);
+
     window.history.replaceState({}, '', `/chat/${chatId}`);
 
     handleSubmit(undefined, {
       experimental_attachments: attachments,
       experimental_graph_attachments: graphAttachments,
+      tool_overrides: toolOverride,
+      // ...(toolOverride ? { tool_overrides: toolOverride } : {}),
     });
 
     setAttachments([]);
@@ -150,6 +171,7 @@ export function MultimodalInput({
     setLocalStorageInput,
     width,
     chatId,
+    toolOverride,
   ]);
 
   const uploadFile = async (file: File) => {
@@ -257,7 +279,10 @@ export function MultimodalInput({
   );
 
   return (
-    <div className="relative w-full flex flex-col gap-4">
+    <div className={cx(
+      "relative w-full flex flex-col gap-4",
+      toolOverride === 'graphQuery' && "border-2 border-green-500 rounded-xl p-4"
+    )}>
       {messages.length === 0 &&
         attachments.length === 0 &&
         uploadQueue.length === 0 && (

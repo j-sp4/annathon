@@ -1,11 +1,12 @@
 import {
-  type Message,
   StreamData,
   convertToCoreMessages,
   streamObject,
   streamText,
 } from 'ai';
+import type { Message } from '@/types/message';
 import { z } from 'zod';
+import axios from 'axios';
 
 import { auth } from '@/app/(auth)/auth';
 import { customModel } from '@/lib/ai';
@@ -35,12 +36,14 @@ type AllowedTools =
   | 'createDocument'
   | 'updateDocument'
   | 'requestSuggestions'
-  | 'getWeather';
+  | 'getWeather'
+  | 'queryGraph';
 
 const blocksTools: AllowedTools[] = [
   'createDocument',
   'updateDocument',
   'requestSuggestions',
+  'queryGraph',
 ];
 
 const weatherTools: AllowedTools[] = ['getWeather'];
@@ -48,13 +51,10 @@ const weatherTools: AllowedTools[] = ['getWeather'];
 const allTools: AllowedTools[] = [...blocksTools, ...weatherTools];
 
 export async function POST(request: Request) {
-  const {
-    id,
-    messages,
-    modelId,
-  }: { id: string; messages: Array<Message>; modelId: string } =
-    await request.json();
+  const { id, messages, modelId, tool_overrides } = await request.json();
 
+  console.log('tool_overrides', tool_overrides);
+  
   const session = await auth();
 
   if (!session || !session.user || !session.user.id) {
@@ -67,6 +67,10 @@ export async function POST(request: Request) {
     return new Response('Model not found', { status: 404 });
   }
 
+  const activeTools = tool_overrides 
+    ? [tool_overrides].filter((tool): tool is AllowedTools => allTools.includes(tool))
+    : allTools;
+    
   const coreMessages = convertToCoreMessages(messages);
   const userMessage = getMostRecentUserMessage(coreMessages);
 
@@ -94,7 +98,8 @@ export async function POST(request: Request) {
     system: systemPrompt,
     messages: coreMessages,
     maxSteps: 5,
-    experimental_activeTools: allTools,
+    experimental_activeTools: activeTools,
+    ...(tool_overrides && { toolChoice: { type: 'tool', tool: tool_overrides } }),
     tools: {
       getWeather: {
         description: 'Get the current weather at a location',
@@ -109,6 +114,20 @@ export async function POST(request: Request) {
 
           const weatherData = await response.json();
           return weatherData;
+        },
+      },
+      queryGraph: {
+        description: 'Query the graph',
+        parameters: z.object({
+          query: z.string(),
+        }),
+        execute: async ({ query }) => {
+          const response = await axios.post(
+            `${process.env.GRAPH_RAG_API_URL}/search/`,
+            { query }
+          );
+
+          return response.data;
         },
       },
       createDocument: {

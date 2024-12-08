@@ -1,9 +1,5 @@
-import type {
-  Attachment,
-  ChatRequestOptions,
-  CreateMessage,
-  Message,
-} from 'ai';
+import type { Attachment } from 'ai';
+import type { ChatRequestOptions, CreateMessage, Message } from '@/types/message';
 import cx from 'classnames';
 import { formatDistance } from 'date-fns';
 import { AnimatePresence, motion } from 'framer-motion';
@@ -78,10 +74,7 @@ export function Block({
   messages: Array<Message>;
   setMessages: Dispatch<SetStateAction<Array<Message>>>;
   votes: Array<Vote> | undefined;
-  append: (
-    message: Message | CreateMessage,
-    chatRequestOptions?: ChatRequestOptions,
-  ) => Promise<string | null | undefined>;
+  append: any;
   handleSubmit: (
     event?: {
       preventDefault?: () => void;
