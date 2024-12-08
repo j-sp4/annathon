@@ -101,14 +101,20 @@ class GraphRAGService:
                 logger.error(self.rag)
                 raise HTTPException(status_code=500, detail="LightRAG not initialized")
             
-            async with httpx.AsyncClient() as client:
-                response = await client.get(data.url)
-                if response.status_code != 200:
-                    raise HTTPException(status_code=500, detail="Failed to download file from Blob storage")
-                
-                content = response.text
-                await self.rag.ainsert(content)
+            if data.url.startswith('file://'):
+                # Handle local file
+                file_path = data.url[7:]  # Remove 'file://' prefix
+                with open(file_path, 'r') as f:
+                    content = f.read()
+            else:
+                # Handle remote URL
+                async with httpx.AsyncClient() as client:
+                    response = await client.get(data.url)
+                    if response.status_code != 200:
+                        raise HTTPException(status_code=500, detail="Failed to download file from Blob storage")
+                    content = response.text
             
+            await self.rag.ainsert(content)
             return {"message": "File processed successfully"}
             
         except Exception as e:

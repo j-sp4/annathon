@@ -1,7 +1,8 @@
 import pytest
 import requests
-from fastapi import HTTPException, UploadFile
+from fastapi import HTTPException
 from src.graph_rag.services import GraphRAGService
+from src.graph_rag.models import PutBlobResult
 import tempfile
 from pathlib import Path
 import shutil
@@ -30,36 +31,28 @@ async def test_run_query(graph_service, test_file):
     service = await graph_service
     file_path = await test_file
     
-    class MockFile:
-        def __init__(self, file_path):
-            self.file = open(file_path, 'rb')
-            self.filename = Path(file_path).name
-
-        def __del__(self):
-            self.file.close()
-
-    test_upload_file = MockFile(file_path)
-    
     try:
-        # Process the test file
-        await service.process_files([test_upload_file])
+        # Create a mock PutBlobResult with proper file URL
+        mock_blob_result = PutBlobResult(
+            url=f"file://{file_path}",  # Add file:// protocol
+            download_url=f"file://{file_path}",
+            pathname=str(file_path),
+            content_type="text/plain",
+            content_disposition="attachment"
+        )
+        
+        # Process the test file using create_graph
+        await service.create_graph(mock_blob_result)
         
         # Test query
         query = "What is the capital of France? Make sure to start your responce with this: The Capital of France is "
-        
-        # Run query
         result = await service.run_query(query, method="hybrid")
         assert "The Capital of France is RagLand".lower() in result.lower().replace("*", "")
         
-        # result = await service.run_query(query, method="local")
-        # assert "The Capital of France is RagLand".lower() in result.lower().replace("*", "")
-        
-        # result = await service.run_query(query, method="global")
-        # assert "The Capital of France is RagLand".lower() in result.lower().replace("*", "")
     finally:
-        # Cleanup - make sure file is closed before unlinking
-        test_upload_file.file.close()
-        file_path.unlink(missing_ok=True)
+        # Cleanup
+        if os.path.exists(file_path):
+            os.unlink(file_path)
 
 @pytest.mark.asyncio
 async def test_run_query_without_init():
