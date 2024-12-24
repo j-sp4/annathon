@@ -30,12 +30,12 @@ def setup_custom_storage():
     return storage_classes
 
 class GraphRAGService:
-    def __init__(self, base_path: str = "./data"):
+    def __init__(self, base_path: str = "./data", working_dir: str = "./local_neo4jWorkDir"):
         self.base_path = base_path
         self.input_path = f"{base_path}/input"
         self.output_path = f"{base_path}/output"
         self.rag = None
-        self.working_dir = "./local_neo4jWorkDir"
+        self.working_dir = working_dir
 
     setup_custom_storage()
     
