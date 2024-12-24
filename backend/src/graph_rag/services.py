@@ -10,6 +10,8 @@ from lightrag.lightrag import LightRAG
 from .models import PutBlobResult
 import httpx
 import asyncio
+from tenacity import retry, stop_after_attempt, wait_exponential
+from typing import List
 
 # Patch the storage class registry
 def setup_custom_storage():
@@ -102,29 +104,72 @@ class GraphRAGService:
                 logger.error(self.rag)
                 raise HTTPException(status_code=500, detail="LightRAG not initialized")
             
-         
-            # Handle remote URL
-            async with httpx.AsyncClient() as client:
-                # Process all URLs concurrently
-                async def process_url(url):
-                    if url.startswith('file://'):
-                        file_path = url[7:]  # Remove 'file://' prefix
-                        with open(file_path, 'r') as f:
-                            return f.read()
-                    else:
-                        response = await client.get(url)
-                        if response.status_code != 200:
-                            raise HTTPException(status_code=500, detail=f"Failed to download file from URL: {url}")
-                        return response.text
+            @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=4, max=10))
+            async def fetch_url(client: httpx.AsyncClient, url: str) -> str:
+                logger.info(f"Fetching content from: {url}")
+                if url.startswith('file://'):
+                    file_path = url[7:]
+                    logger.info(f"Reading local file: {file_path}")
+                    with open(file_path, 'r') as f:
+                        return f.read()
+                else:
+                    timeout = httpx.Timeout(30.0, connect=10.0)  # 30s total timeout, 10s connect timeout
+                    response = await client.get(url, timeout=timeout)
+                    response.raise_for_status()
+                    return response.text
 
-                # Gather all download tasks
-                contents = await asyncio.gather(*[process_url(url) for url in data.urls])
+            async def process_url(url: str) -> str:
+                try:
+                    async with httpx.AsyncClient(timeout=30.0) as client:
+                        return await fetch_url(client, url)
+                except Exception as e:
+                    logger.error(f"Error processing URL {url}: {str(e)}")
+                    raise
+
+            # Process URLs in smaller batches to avoid overwhelming the system
+            batch_size = 5
+            all_contents: List[str] = []
+            
+            for i in range(0, len(data.urls), batch_size):
+                batch_urls = data.urls[i:i + batch_size]
+                logger.info(f"Processing batch {i//batch_size + 1} with {len(batch_urls)} URLs")
                 
-                # Insert all contents into RAG
-                for content in contents:
+                try:
+                    batch_contents = await asyncio.gather(
+                        *[process_url(url) for url in batch_urls],
+                        return_exceptions=True
+                    )
+                    
+                    # Filter out any errors and log them
+                    for url, content in zip(batch_urls, batch_contents):
+                        if isinstance(content, Exception):
+                            logger.error(f"Failed to process {url}: {str(content)}")
+                        else:
+                            all_contents.append(content)
+                
+                except Exception as e:
+                    logger.error(f"Batch processing error: {str(e)}")
+                    continue
+
+            # Insert successful contents into RAG
+            success_count = 0
+            for content in all_contents:
+                try:
                     await self.rag.ainsert(content)
-                
-            return {"message": f"Successfully processed {len(data.urls)} files"}
+                    success_count += 1
+                except Exception as e:
+                    logger.error(f"Error inserting content into RAG: {str(e)}")
+
+            if success_count == 0:
+                raise HTTPException(
+                    status_code=500,
+                    detail="Failed to process any files successfully"
+                )
+
+            return {
+                "message": f"Successfully processed {success_count} out of {len(data.urls)} files",
+                "failed": len(data.urls) - success_count
+            }
             
         except Exception as e:
             logger.error(f"Error processing files: {str(e)}")

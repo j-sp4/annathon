@@ -9,7 +9,7 @@ class CustomNeo4JStorage(BaseGraphStorage):
         # Initialize Neo4j connection
         self.uri = os.environ.get('NEO4J_URI', "neo4j://neo4j:7687")
         self.username = os.environ.get('NEO4J_USERNAME', "neo4j")
-        self.password = os.environ.get('NEO4J_PASSWORD', "atleast8chars")
+        self.password = os.environ.get('NEO4J_PASSWORD', "HardPassword4435")
         self.driver = GraphDatabase.driver(self.uri, auth=(self.username, self.password))
 
     async def upsert_node(self, node_id: str, node_data: Dict[str, Any] = None) -> None:
