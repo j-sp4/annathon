@@ -40,3 +40,6 @@ settings.json
 backend/pytest.ini
 
 backend/local_neo4jWorkDir
+
+notebooks/
+local_neo4jWorkDir/
