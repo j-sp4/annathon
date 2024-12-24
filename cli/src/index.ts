@@ -3,7 +3,6 @@ import path from 'path';
 import dotenv from 'dotenv';
 // Load environment variables from .env file
 dotenv.config({ path: path.resolve(__dirname, '../.env') });
-console.log('Loaded ENV vars:', process.env);
 
 import { Command } from 'commander';
 import { authenticate } from './auth';
@@ -39,11 +38,8 @@ program
 program
   .command('search <query_string>')
   .description('Searches the indexed documents using a query string')
-  .option('--auth-token <TOKEN>', 'Provide an auth token directly, overriding stored token')
-  .option('--limit <N>', 'Limit the number of results')
-  .option('--output <FORMAT>', 'Output format (e.g., json, text). Defaults to text')
-  .action(async (queryString, options) => {
-    await searchQuery(queryString, options.authToken, options.limit, options.output);
+  .action(async (queryString) => {
+    await searchQuery(queryString);
   });
 
 program.parse(process.argv); 
