@@ -64,4 +64,5 @@ nano-vectordb==0.0.4.3
 neo4j==5.27.0
 oracledb==2.5.0
 debugpy==1.8.0  
+asyncio==3.4.3
 
