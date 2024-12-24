@@ -34,11 +34,11 @@ async def test_run_query(graph_service, test_file):
     try:
         # Create a mock PutBlobResult with proper file URL
         mock_blob_result = PutBlobResult(
-            url=f"file://{file_path}",  # Add file:// protocol
-            download_url=f"file://{file_path}",
-            pathname=str(file_path),
-            content_type="text/plain",
-            content_disposition="attachment"
+            url=[f"file://{file_path}"],  # Add file:// protocol
+            download_url=[f"file://{file_path}"],
+            pathname=[str(file_path)],
+            content_type=["text/plain"],
+            content_disposition=["attachment"]
         )
         
         # Process the test file using create_graph
