@@ -9,6 +9,7 @@ from .storage.custom_neo4j import CustomNeo4JStorage
 from lightrag.lightrag import LightRAG
 from .models import PutBlobResult
 import httpx
+import asyncio
 
 # Patch the storage class registry
 def setup_custom_storage():
@@ -94,28 +95,36 @@ class GraphRAGService:
             raise HTTPException(status_code=500, detail=f"Failed to execute query: {str(e)}")
 
     async def create_graph(self, data: PutBlobResult):
-        """Process uploaded files with LightRAG"""
+        """Process multiple uploaded files with LightRAG"""
         try:
             if not self.rag:
                 logger.error("LightRAG not initialized")
                 logger.error(self.rag)
                 raise HTTPException(status_code=500, detail="LightRAG not initialized")
             
-            if data.url.startswith('file://'):
-                # Handle local file
-                file_path = data.url[7:]  # Remove 'file://' prefix
-                with open(file_path, 'r') as f:
-                    content = f.read()
-            else:
-                # Handle remote URL
-                async with httpx.AsyncClient() as client:
-                    response = await client.get(data.url)
-                    if response.status_code != 200:
-                        raise HTTPException(status_code=500, detail="Failed to download file from Blob storage")
-                    content = response.text
-            
-            await self.rag.ainsert(content)
-            return {"message": "File processed successfully"}
+         
+            # Handle remote URL
+            async with httpx.AsyncClient() as client:
+                # Process all URLs concurrently
+                async def process_url(url):
+                    if url.startswith('file://'):
+                        file_path = url[7:]  # Remove 'file://' prefix
+                        with open(file_path, 'r') as f:
+                            return f.read()
+                    else:
+                        response = await client.get(url)
+                        if response.status_code != 200:
+                            raise HTTPException(status_code=500, detail=f"Failed to download file from URL: {url}")
+                        return response.text
+
+                # Gather all download tasks
+                contents = await asyncio.gather(*[process_url(url) for url in data.urls])
+                
+                # Insert all contents into RAG
+                for content in contents:
+                    await self.rag.ainsert(content)
+                
+            return {"message": f"Successfully processed {len(data.urls)} files"}
             
         except Exception as e:
             logger.error(f"Error processing files: {str(e)}")

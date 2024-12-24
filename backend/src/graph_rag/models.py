@@ -14,8 +14,8 @@ class Search(BaseModel):
     response_type: Optional[str] = "Multiple Paragraphs"  # Kept for backward compatibility
 
 class PutBlobResult(BaseModel):
-    url: str
-    download_url: str
-    pathname: str
-    content_type: str | None = None
-    content_disposition: str
+    urls: list[str]
+    download_urls: list[str]
+    pathnames: list[str]
+    content_types: list[str | None] = None
+    content_dispositions: list[str]
