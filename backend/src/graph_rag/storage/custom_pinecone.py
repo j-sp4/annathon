@@ -25,18 +25,24 @@ class PineconeVectorDBStorage(BaseVectorStorage):
         pc = Pinecone(api_key=os.environ.get("PINECONE_API_KEY"))
         self._max_batch_size = self.global_config["embedding_batch_num"]
         
-        # Create index before trying to access it
-        if self.namespace not in pc.list_indexes():
-            from pinecone import ServerlessSpec
-            pc.create_index(
-                name=self.namespace,
-                dimension=self.embedding_func.embedding_dim,
-                metric="cosine",
-                spec=ServerlessSpec(
-                    cloud="aws",
-                    region="us-east-1"
+        # Check if index exists before trying to create it
+        existing_indexes = pc.list_indexes()
+        if self.namespace not in existing_indexes:
+            try:
+                from pinecone import ServerlessSpec
+                pc.create_index(
+                    name=self.namespace,
+                    dimension=self.embedding_func.embedding_dim,
+                    metric="cosine",
+                    spec=ServerlessSpec(
+                        cloud="aws",
+                        region="us-east-1"
+                    )
                 )
-            )
+            except Exception as e:
+                # If index was created between our check and create attempt, that's okay
+                if "ALREADY_EXISTS" not in str(e):
+                    raise e
         
         # Only get the index after we're sure it exists
         self._index = pc.Index(self.namespace)
@@ -47,7 +53,7 @@ class PineconeVectorDBStorage(BaseVectorStorage):
             logger.warning("You insert an empty data to vector DB")
             return []
 
-        contents = [v["content"] for v in data.items()]
+        contents = [v["content"] for _, v in data.items()]
         batches = [
             contents[i : i + self._max_batch_size]
             for i in range(0, len(contents), self._max_batch_size)
