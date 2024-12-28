@@ -26,7 +26,7 @@ class PineconeVectorDBStorage(BaseVectorStorage):
         self._max_batch_size = self.global_config["embedding_batch_num"]
         
         # Check if index exists before trying to create it
-        existing_indexes = pc.list_indexes()
+        existing_indexes = pc.list_indexes().names()
         if self.namespace not in existing_indexes:
             try:
                 from pinecone import ServerlessSpec
