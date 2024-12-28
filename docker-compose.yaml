@@ -68,10 +68,32 @@ services:
     stdin_open: true
     tty: true
 
-
+  mongodb:
+    image: mongo:latest
+    container_name: mongodb
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=root
+      - MONGO_INITDB_ROOT_PASSWORD=root
+      - MONGO_INITDB_DATABASE=LightRAG
+    ports:
+      - 27017:27017
+    volumes:
+      - mongodb_data:/data/db
+    env_file:
+      - .env
+    restart: always
 
 volumes:
   postgresql_data:
   neo4j_data:
+  milvus:
+  etcd:
+  minio:
+  mongodb_data:
+
+networks:
+  milvus:
+    external: true
+
 
 

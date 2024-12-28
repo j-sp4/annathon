@@ -6,6 +6,7 @@ from lightrag import LightRAG, QueryParam
 from lightrag.llm import gpt_4o_mini_complete
 from ..utils.logger import logger
 from .storage.custom_neo4j import CustomNeo4JStorage
+from .storage.custom_pinecone import PineconeVectorDBStorage
 from lightrag.lightrag import LightRAG
 from .models import PutBlobResult
 import httpx
@@ -15,22 +16,23 @@ from typing import List
 
 # Patch the storage class registry
 def setup_custom_storage():
-    # Access the storage class dictionary directly
-    storage_classes = {
-        # Keep existing storage classes
-        "JsonKVStorage": LightRAG._get_storage_class(None)["JsonKVStorage"],
-        "NanoVectorDBStorage": LightRAG._get_storage_class(None)["NanoVectorDBStorage"],
-        "NetworkXStorage": LightRAG._get_storage_class(None)["NetworkXStorage"],
-        # Add our custom storage
-        "CustomNeo4JStorage": CustomNeo4JStorage
-    }
+    # Get the original storage classes
+    original_storage_classes = LightRAG._get_storage_class(None)
+    
+    # Add our custom storage classes to the existing dictionary
+    original_storage_classes.update({
+        "CustomNeo4JStorage": CustomNeo4JStorage,
+        "CustomPineconeVectorDBStorage": PineconeVectorDBStorage,
+    })
+
+    print(original_storage_classes)
     
     # Monkey patch the _get_storage_class method
     def new_get_storage_class(self):
-        return storage_classes
+        return original_storage_classes
     
     LightRAG._get_storage_class = new_get_storage_class
-    return storage_classes
+    return original_storage_classes
 
 class GraphRAGService:
     def __init__(self, base_path: str = "./data", working_dir: str = "./local_neo4jWorkDir"):
@@ -57,7 +59,9 @@ class GraphRAGService:
             self.rag = LightRAG(
                 working_dir=self.working_dir,
                 graph_storage="CustomNeo4JStorage",
-                log_level="DEBUG"
+                log_level="DEBUG",
+                vector_storage="CustomPineconeVectorDBStorage",
+                kv_storage="MongoKVStorage",
             )   
             logger.info("LightRAG initialized successfully")
             
